@@ -1,0 +1,83 @@
+# AI Model Governance Card — Fraud Detection Model
+# Required under EU AI Act Article 11 (Technical Documentation)
+
+model_id: "nn-fraud-detect-v2"
+model_name: "Claims Fraud Detection Model"
+version: "2.1.0"
+risk_category: "high"  # Insurance domain = high-risk per Annex III
+transparency_level: "full"
+
+# Purpose and Scope
+intended_use: |
+  Automated screening of insurance claims to flag potentially fraudulent
+  submissions for human review. The model produces a risk score (0.0–1.0)
+  and key contributing factors.
+
+out_of_scope_uses:
+  - Automated claim rejection without human review
+  - Customer profiling for marketing purposes
+  - Premium pricing decisions
+
+target_population: "NN policyholders submitting insurance claims (NL market)"
+
+# Technical Details
+model_type: "gradient_boosting_classifier"
+framework: "scikit-learn 1.3"
+input_features:
+  - claim_amount
+  - claim_type
+  - policy_age_days
+  - claims_last_12_months
+  - description_anomaly_score
+  - time_since_last_claim
+  - geographic_risk_score
+
+output_description: |
+  Fraud probability score (0.0–1.0) with feature importance weights.
+  Claims scoring above 0.7 are flagged for manual review.
+
+performance_metrics:
+  accuracy: 0.94
+  precision: 0.87
+  recall: 0.82
+  f1_score: 0.84
+  auc_roc: 0.96
+  false_positive_rate: 0.08
+
+# Fairness and Bias Assessment
+protected_attributes_tested:
+  - age_group
+  - gender
+  - postal_code_region
+  - policy_type
+
+bias_metrics:
+  demographic_parity_age: 0.03  # < 0.05 threshold
+  equalized_odds_gender: 0.02
+  disparate_impact_region: 0.95  # > 0.8 required
+
+fairness_constraints:
+  - "Demographic parity ratio must be within 5% across age groups"
+  - "False positive rate must not vary >3% across genders"
+  - "Disparate impact ratio must remain above 0.8 for all regions"
+
+# Governance
+owner: "NN Data Science — Claims Analytics Team"
+approved_by: "AI Governance Board (Tjerrie Smit, CAO)"
+approval_date: "2024-11-15"
+next_review_date: "2025-05-15"
+human_oversight_required: true
+override_mechanism: |
+  Any claim flagged by the model can be manually cleared by a senior
+  claims assessor (role: senior_agent or above). All overrides are
+  logged with justification in the audit trail.
+
+# Lifecycle
+training_date: "2024-10-01"
+training_data_period: "2020-01 to 2024-09"
+training_samples: 245000
+deployment_date: "2024-12-01"
+monitoring_dashboard: "https://monitoring.nn-internal.nl/models/fraud-v2"
+drift_detection: "Kolmogorov-Smirnov test weekly on input distributions"
+retraining_trigger: "AUC-ROC drops below 0.93 or data drift detected"
+status: "production"

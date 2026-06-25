@@ -1,0 +1,4 @@
+flask==2.3.3
+pytest==7.4.0
+pytest-cov==4.1.0
+# No pinned transitive dependencies — "it works on my machine"

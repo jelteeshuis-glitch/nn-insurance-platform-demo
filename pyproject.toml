@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nn-insurance-platform-demo"
+version = "1.0.0"
+description = "NN Insurance Claims Platform — Legacy Modernization Demo"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+authors = [
+    {name = "COG GTM", email = "gtm@cognition.ai"},
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "pytest-asyncio>=0.23",
+    "bandit>=1.7",
+    "ruff>=0.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["legacy/tests", "modernized/tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "S", "B"]
+ignore = ["S101"]  # Allow assert in tests
+
+[tool.coverage.run]
+source = ["legacy/src", "modernized", "governance"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
