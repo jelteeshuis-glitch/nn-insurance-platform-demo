@@ -77,7 +77,9 @@ class ClaimSubmission(BaseModel):
 class Claim(BaseModel):
     """Domain entity — the core claim object."""
     id: str = Field(default_factory=lambda: str(uuid4()))
-    claim_number: str = Field(default_factory=lambda: f"CLM-{datetime.now().strftime('%Y%m%d')}-{uuid4().hex[:8].upper()}")
+    claim_number: str = Field(
+        default_factory=lambda: f"CLM-{datetime.now().strftime('%Y%m%d')}-{uuid4().hex[:8].upper()}"
+    )
     policy_id: str
     customer_id: str
     claim_type: ClaimType

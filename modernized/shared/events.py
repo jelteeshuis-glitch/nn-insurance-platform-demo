@@ -11,7 +11,6 @@ Benefits over legacy approach:
 - Natural audit trail
 - Supports eventual consistency
 """
-import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -61,7 +60,9 @@ class EventBus:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
 
-    async def publish(self, event_type: str, payload: dict[str, Any], correlation_id: str = "") -> DomainEvent:
+    async def publish(
+        self, event_type: str, payload: dict[str, Any], correlation_id: str = ""
+    ) -> DomainEvent:
         """Publish a domain event to all subscribers."""
         event = DomainEvent(
             event_type=event_type,

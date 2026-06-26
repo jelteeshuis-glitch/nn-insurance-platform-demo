@@ -9,7 +9,6 @@ Clean separation of concerns:
 - Event publishing (async, decoupled)
 """
 from datetime import datetime
-from typing import Optional
 
 from governance.audit import AuditEntry, AuditEventType, AuditLogger, RiskLevel
 
@@ -174,7 +173,10 @@ class ClaimsService:
             actor=actor,
             actor_role=actor_role,
             resource=f"claim:{claim.id}",
-            action=f"{'Approved' if decision.decision == 'approved' else 'Rejected'} claim {claim.claim_number}",
+            action=(
+                f"{'Approved' if decision.decision == 'approved' else 'Rejected'} "
+                f"claim {claim.claim_number}"
+            ),
             outcome="success",
             justification=decision.notes or "Standard processing",
             details={

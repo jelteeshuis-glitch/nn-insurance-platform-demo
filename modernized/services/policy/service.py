@@ -71,7 +71,10 @@ class PolicyService:
         if claim_amount > policy.coverage_amount:
             return {
                 "covered": False,
-                "reason": f"Amount €{claim_amount:,.2f} exceeds coverage €{policy.coverage_amount:,.2f}",
+                "reason": (
+                    f"Amount €{claim_amount:,.2f} exceeds "
+                    f"coverage €{policy.coverage_amount:,.2f}"
+                ),
             }
 
         return {"covered": True, "remaining_coverage": policy.coverage_amount - claim_amount}

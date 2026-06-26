@@ -9,7 +9,6 @@ Demonstrates production-ready test suite:
 - Integration tests with mocked dependencies
 """
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -19,9 +18,7 @@ from modernized.services.claims.models import (
     ClaimStatus,
     ClaimSubmission,
     ClaimType,
-    VALID_TRANSITIONS,
 )
-
 
 # ============================================================
 # Model Validation Tests
@@ -266,8 +263,9 @@ class TestClaimAuthorization:
         """Claims above €50,000 require senior_agent or above."""
         # This would test the service layer's authorization check
         # Demonstrating that the test exists and documents the requirement
-        from modernized.shared.auth import AuthContext, Role
         from datetime import timezone
+
+        from modernized.shared.auth import AuthContext, Role
 
         agent_context = AuthContext(
             user_id="user-001",

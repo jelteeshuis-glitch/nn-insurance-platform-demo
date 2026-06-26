@@ -13,7 +13,6 @@ Key requirements addressed:
 - Article 15: Accuracy, robustness, and cybersecurity
 """
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 

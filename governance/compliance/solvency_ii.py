@@ -11,7 +11,7 @@ from typing import Optional
 
 
 class ComplianceStatus(str, Enum):
-    PASS = "pass"
+    PASS = "pass"  # noqa: S105 # nosec B105 - enum value, not a credential
     FAIL = "fail"
     WARNING = "warning"
     NOT_APPLICABLE = "n/a"

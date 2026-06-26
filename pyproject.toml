@@ -22,6 +22,9 @@ dev = [
     "ruff>=0.1",
 ]
 
+[tool.setuptools.packages.find]
+include = ["legacy*", "modernized*", "governance*"]
+
 [tool.pytest.ini_options]
 testpaths = ["legacy/tests", "modernized/tests"]
 asyncio_mode = "auto"

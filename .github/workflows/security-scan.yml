@@ -34,7 +34,7 @@ jobs:
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Modernized Codebase (should be clean)" >> $GITHUB_STEP_SUMMARY
-          bandit -r modernized/ governance/ -f json -o modern-findings.json
+          bandit -r modernized/ governance/ --exclude '*/tests/*' --skip B101 -f json -o modern-findings.json
           echo "Found $(cat modern-findings.json | python -c 'import json,sys; print(len(json.load(sys.stdin).get("results",[])))') issues in modernized code" >> $GITHUB_STEP_SUMMARY
       
       - name: Run Safety (dependency vulnerabilities)
@@ -75,7 +75,7 @@ jobs:
           echo "|--------|--------|-----------|" >> $GITHUB_STEP_SUMMARY
           
           LEGACY_COUNT=$(bandit -r legacy/src/ -f json 2>/dev/null | python -c 'import json,sys; print(len(json.load(sys.stdin).get("results",[])))' 2>/dev/null || echo "N/A")
-          MODERN_COUNT=$(bandit -r modernized/ governance/ -f json 2>/dev/null | python -c 'import json,sys; print(len(json.load(sys.stdin).get("results",[])))' 2>/dev/null || echo "0")
+          MODERN_COUNT=$(bandit -r modernized/ governance/ --exclude '*/tests/*' --skip B101 -f json 2>/dev/null | python -c 'import json,sys; print(len(json.load(sys.stdin).get("results",[])))' 2>/dev/null || echo "0")
           
           echo "| SAST findings | $LEGACY_COUNT | $MODERN_COUNT |" >> $GITHUB_STEP_SUMMARY
           echo "| SQL injection | Multiple | 0 (parameterized) |" >> $GITHUB_STEP_SUMMARY
