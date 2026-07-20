@@ -127,6 +127,8 @@ class ClaimsService:
         - Full audit trail
         - Segregation of duties
         """
+        authorize(actor_role, "claims:process")
+
         claim = await self.repository.get(decision.claim_id)
         if not claim:
             raise ValueError(f"Claim {decision.claim_id} not found")

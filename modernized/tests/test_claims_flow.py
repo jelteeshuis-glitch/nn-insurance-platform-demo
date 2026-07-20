@@ -142,13 +142,30 @@ class TestDecision:
         await platform.claims.advance_status(
             claim.id, ClaimStatus.UNDER_REVIEW, "agent1", "agent"
         )
+        # The submitter (even with a processing role) cannot decide their own
+        # claim — segregation of duties is enforced after RBAC passes.
         with pytest.raises(PermissionError, match="own claim"):
             await platform.claims.process_decision(
                 ClaimDecision(
                     claim_id=claim.id, decision="approved",
                     approved_amount=5_000, processed_by="CUST-1",
                 ),
-                "CUST-1", "customer",
+                "CUST-1", "agent",
+            )
+
+    async def test_decision_denied_for_customer_role(self, platform):
+        policy = await _active_policy(platform)
+        claim = await platform.claims.submit_claim(
+            _submission(policy.id), "CUST-1", "CUST-1"
+        )
+        # A non-owner customer must not be able to approve a claim (RBAC).
+        with pytest.raises(PermissionError, match="claims:process"):
+            await platform.claims.process_decision(
+                ClaimDecision(
+                    claim_id=claim.id, decision="approved",
+                    approved_amount=5_000, processed_by="CUST-2",
+                ),
+                "CUST-2", "customer",
             )
 
     async def test_decision_missing_claim(self, platform):
