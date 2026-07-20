@@ -31,8 +31,17 @@ PERMISSIONS: dict[str, set[Role]] = {
     "claims:view_all": {Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
     "claims:process": {Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
     "claims:approve_high_value": {Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
-    "payments:initiate": {Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "payments:initiate": {Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN, Role.SYSTEM},
     "payments:batch": {Role.MANAGER, Role.ADMIN},
+    "payments:refund": {Role.MANAGER, Role.ADMIN},
+    "policy:create": {Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "policy:view": {Role.CUSTOMER, Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "policy:manage": {Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "customer:register": {Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "customer:read": {Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "customer:consent": {Role.CUSTOMER, Role.AGENT, Role.SENIOR_AGENT, Role.MANAGER, Role.ADMIN},
+    "customer:erase": {Role.MANAGER, Role.ADMIN},
+    "customer:export": {Role.CUSTOMER, Role.MANAGER, Role.ADMIN},
     "reports:view": {Role.MANAGER, Role.ADMIN},
     "admin:users": {Role.ADMIN},
     "admin:config": {Role.ADMIN},
@@ -131,6 +140,25 @@ class AccountLockout:
         """Clear login attempts on successful auth."""
         self._attempts.pop(username, None)
         self._lockouts.pop(username, None)
+
+
+def role_has_permission(role: "Role | str", permission: str) -> bool:
+    """Return ``True`` if ``role`` is granted ``permission`` by the matrix."""
+    try:
+        resolved = role if isinstance(role, Role) else Role(role)
+    except ValueError:
+        return False
+    return resolved in PERMISSIONS.get(permission, set())
+
+
+def authorize(role: "Role | str", permission: str) -> None:
+    """Enforce an RBAC check, raising :class:`PermissionError` on failure."""
+    if not role_has_permission(role, permission):
+        allowed = [r.value for r in PERMISSIONS.get(permission, set())]
+        raise PermissionError(
+            f"Permission denied: '{permission}' requires one of {allowed} "
+            f"(role: {role})"
+        )
 
 
 def require_permission(permission: str):

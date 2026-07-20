@@ -1,0 +1,49 @@
+# NN Insurance Platform — modernized microservices (ADR-001).
+#
+# Each bounded context runs as an independently deployable container. For the
+# demo the event bus is in-process per container; in production the services
+# communicate over Azure Service Bus (ADR-002) and each owns its own database.
+#
+# Usage:
+#   docker compose up --build
+#
+# Secrets are injected via environment variables (never baked into images).
+# ENCRYPTION_KEY should be a base64 urlsafe 32-byte Fernet key in production.
+services:
+  claims:
+    build:
+      context: .
+      dockerfile: modernized/services/claims/Dockerfile
+    environment:
+      PORT: 8001
+    ports:
+      - "8001:8001"
+
+  policy:
+    build:
+      context: .
+      dockerfile: modernized/services/policy/Dockerfile
+    environment:
+      PORT: 8002
+    ports:
+      - "8002:8002"
+
+  payments:
+    build:
+      context: .
+      dockerfile: modernized/services/payments/Dockerfile
+    environment:
+      PORT: 8003
+    ports:
+      - "8003:8003"
+
+  customer:
+    build:
+      context: .
+      dockerfile: modernized/services/customer/Dockerfile
+    environment:
+      PORT: 8004
+      # In production provide a managed Fernet key via secret store / Key Vault.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+    ports:
+      - "8004:8004"

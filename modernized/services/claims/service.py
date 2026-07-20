@@ -12,6 +12,7 @@ from datetime import datetime
 
 from governance.audit import AuditEntry, AuditEventType, AuditLogger, RiskLevel
 
+from ...shared.auth import authorize
 from .models import Claim, ClaimDecision, ClaimStatus, ClaimSubmission
 
 
@@ -109,6 +110,7 @@ class ClaimsService:
             "claim_id": claim.id,
             "claim_number": claim.claim_number,
             "amount": claim.amount_claimed,
+            "description": claim.description,
             "customer_id": customer_id,
         })
 
@@ -198,6 +200,34 @@ class ClaimsService:
 
         return claim
 
+    async def advance_status(
+        self, claim_id: str, new_status: ClaimStatus, actor: str, actor_role: str
+    ) -> Claim:
+        """Advance a claim through the review workflow (e.g. VALIDATED, UNDER_REVIEW).
+
+        Enforces RBAC and the state machine; used to move a submitted claim into
+        a reviewable state before a decision is made.
+        """
+        authorize(actor_role, "claims:process")
+        claim = await self.repository.get(claim_id)
+        if not claim:
+            raise ValueError(f"Claim {claim_id} not found")
+
+        claim.transition_to(new_status)
+        await self.repository.save(claim)
+
+        self.audit.log(AuditEntry(
+            event_type=AuditEventType.DATA_WRITE,
+            actor=actor,
+            actor_role=actor_role,
+            resource=f"claim:{claim.id}",
+            action=f"Claim {claim.claim_number} → {new_status.value}",
+            outcome="success",
+            details={"status": new_status.value},
+            data_subjects=[claim.customer_id],
+        ))
+        return claim
+
     async def flag_claim(
         self, claim_id: str, reason: str, fraud_score: float, actor: str
     ) -> Claim:
@@ -229,3 +259,51 @@ class ClaimsService:
         ))
 
         return claim
+
+    async def mark_paid(self, claim_id: str, actor: str = "system") -> Claim:
+        """Transition an approved claim to PAID (called after payment completes)."""
+        claim = await self.repository.get(claim_id)
+        if not claim:
+            raise ValueError(f"Claim {claim_id} not found")
+
+        claim.transition_to(ClaimStatus.PAID)
+        await self.repository.save(claim)
+
+        self.audit.log(AuditEntry(
+            event_type=AuditEventType.PAYMENT_COMPLETED,
+            actor=actor,
+            actor_role="system",
+            resource=f"claim:{claim.id}",
+            action=f"Marked claim {claim.claim_number} as paid",
+            outcome="success",
+            details={"claim_number": claim.claim_number},
+            data_subjects=[claim.customer_id],
+        ))
+        return claim
+
+    # ------------------------------------------------------------------
+    # Event consumers (wired in modernized/platform.py per ADR-002)
+    # ------------------------------------------------------------------
+
+    async def on_fraud_flagged(self, event) -> None:
+        """Consume ``fraud.flagged`` — move the claim into FLAGGED review."""
+        claim_id = event.payload.get("claim_id")
+        claim = await self.repository.get(claim_id)
+        if not claim:
+            return
+        # Advance a freshly-submitted claim to a flaggable state.
+        if claim.status == ClaimStatus.SUBMITTED:
+            claim.transition_to(ClaimStatus.VALIDATED)
+            await self.repository.save(claim)
+        await self.flag_claim(
+            claim_id,
+            reason=event.payload.get("reason", "high fraud score"),
+            fraud_score=float(event.payload.get("fraud_score", 0.0)),
+            actor="fraud_detection",
+        )
+
+    async def on_payment_completed(self, event) -> None:
+        """Consume ``payment.completed`` — mark the underlying claim as paid."""
+        claim_id = event.payload.get("claim_id")
+        if claim_id:
+            await self.mark_paid(claim_id)
