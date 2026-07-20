@@ -112,3 +112,96 @@ Implement model governance registry with:
 - Veracode/SonarQube clean reports
 - Slightly more complex deployment (vault integration)
 - Security as enabler, not blocker
+
+---
+
+## ADR-006: Repository Pattern with Pluggable Persistence
+
+**Status**: Accepted
+**Date**: 2026-07-20
+**Context**: Services referenced an abstract `repository` that was never defined.
+The demo needs runnable persistence without provisioning a database, while
+production must satisfy ADR-005 (parameterized access via SQLAlchemy).
+
+### Decision
+- Define an abstract async `Repository[T]` interface in `modernized/shared/repository.py`
+  (`save`, `get`, `list_all`, `delete`, `exists`, `find`).
+- Provide an `InMemoryRepository[T]` concrete adapter for the demo and tests.
+- Services depend only on the interface, so a SQLAlchemy-backed adapter can be
+  dropped in per service with no changes to business logic.
+- Payments adds a `PaymentRepository` with a secondary idempotency-key index.
+
+### Consequences
+- Services are testable and runnable with zero infrastructure.
+- Swapping to a real DB (Postgres per service) is a localized change.
+- The in-memory adapter is **not** durable and is for the demo only.
+
+---
+
+## ADR-007: FastAPI Entry Points per Service
+
+**Status**: Accepted
+**Date**: 2026-07-20
+**Context**: The monolithic Flask routes in `legacy/src/app.py` must be replaced
+with per-service HTTP APIs consistent with the microservices decomposition.
+
+### Decision
+- Each bounded context exposes a thin FastAPI app (`services/<svc>/api.py`) via a
+  `create_app(service)` factory plus a module-level `app` for `uvicorn`.
+- Routes only translate HTTP ↔ domain calls; all rules live in the service layer.
+- Caller identity/role arrive via `X-Actor` / `X-Actor-Role` headers (a real
+  deployment resolves these from a validated JWT — see ADR-005).
+- Domain exceptions map to HTTP status codes centrally
+  (`PermissionError` → 403, `ValueError` → 400) in `shared/http.py`.
+
+### Consequences
+- Independent deployability (ADR-001) with per-service OpenAPI docs.
+- Consistent validation via the shared Pydantic domain models.
+- Header-based auth is a demo shim; production terminates real JWTs at the edge.
+
+---
+
+## ADR-008: In-Process Event Bus as Local Adapter
+
+**Status**: Accepted
+**Date**: 2026-07-20
+**Context**: ADR-002 targets Azure Service Bus, which is unavailable in the demo.
+
+### Decision
+- Use the existing in-process async `EventBus` as the local adapter and wire all
+  ADR-002 subscriptions in a single composition root (`modernized/platform.py`):
+  `claim.submitted` → fraud + notifications, `claim.approved` → payments +
+  notifications, `fraud.flagged` → claims, `payment.completed` → claims +
+  notifications.
+- Failed handlers are isolated to the bus dead-letter list rather than failing
+  the originating transaction.
+
+### Consequences
+- The full event-driven flow is exercised end-to-end in tests.
+- The bus is the seam for a Service Bus adapter later (same publish/subscribe API).
+- Handlers must be idempotent (payment processing keys on the claim id).
+
+---
+
+## ADR-009: Encryption & Tokenization Boundaries
+
+**Status**: Accepted
+**Date**: 2026-07-20
+**Context**: The legacy system stored BSN/email in cleartext and logged raw IBANs,
+violating GDPR (ADR-003) and PCI-DSS (ADR-005).
+
+### Decision
+- Introduce a `shared/encryption.py` abstraction with a `FernetEncryptionService`;
+  the key is sourced from `ENCRYPTION_KEY` (Key Vault / secret store in prod) and
+  generated ephemerally only for the demo.
+- Customer PII (BSN, email, phone, address) is encrypted at rest on the entity;
+  plaintext PII never persists.
+- Payment IBANs are tokenized (SHA-256 → `tok_…`) at the API boundary; the
+  `Payment` entity stores only the token and passes mod-97 validation first.
+- The audit logger continues to mask any residual PII in log details (ADR-003).
+
+### Consequences
+- PII/PCI data is protected at rest and absent from logs.
+- Right-to-erasure anonymizes contact data while retaining legally-required records.
+- Tokenization is one-way for the demo; production would use a reversible vault
+  token if de-tokenization for payout is required.

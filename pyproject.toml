@@ -37,6 +37,13 @@ line-length = 100
 select = ["E", "F", "W", "I", "N", "S", "B"]
 ignore = ["S101"]  # Allow assert in tests
 
+[tool.ruff.lint.per-file-ignores]
+# FastAPI's dependency-injection idiom requires `Depends()` in argument
+# defaults, which is safe here (not a mutable default) but trips B008.
+"modernized/services/*/api.py" = ["B008"]
+# Test fixtures/vars use benign literals that trip hardcoded-secret heuristics.
+"modernized/tests/*" = ["S105", "S106"]
+
 [tool.coverage.run]
 source = ["legacy/src", "modernized", "governance"]
 
